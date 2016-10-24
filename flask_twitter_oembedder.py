@@ -1,6 +1,9 @@
+import json
+
 import requests
 from requests_oauthlib import OAuth1
 from flask import Markup
+
 
 class TwitterOEmbedder(object):
 
@@ -13,7 +16,7 @@ class TwitterOEmbedder(object):
         if timeout > twitter_timeout:
             raise Exception("TwitterOEmbedder: Cache expiry should not exceed 1 year "
                             "per Twitter API specification")
-        max_timeout = {'saslmemcached':60*60*24*30,
+        max_timeout = {'saslmemcached': 60*60*24*30,
                        'simple': twitter_timeout}
 
         if not timeout:
@@ -35,11 +38,20 @@ class TwitterOEmbedder(object):
 
                 @cache.memoize(timeout=timeout)
                 def get_tweet_html(tweet_id, omit_script):
-                    params = {'id':tweet_id,
-                              'omit_script':omit_script}
+                    params = {'id': tweet_id,
+                              'omit_script': omit_script}
                     r = requests.get(url, params=params, auth=auth)
                     try:
-                        tweet_html = Markup(r.json()[u'html'])
+                        response_json = r.json()
+                        if u'html' in response_json:
+                            tweet_html = Markup(response_json[u'html'])
+                        else:
+                            tweet_html = Markup(
+                                '<div class="alertcard-block  alert-warning" role="alert">'
+                                '<pre>{0}</pre>'
+                                '</div>'
+                                ''.format(json.dumps(response_json, indent=2))
+                            )
                     except KeyError as e:
                         if debug or (debug is None and app.debug):
                             raise e
